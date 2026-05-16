@@ -182,15 +182,32 @@ Number of Analysts: {info.get('numberOfAnalystOpinions', 0)}
                     text += f"  {idx}: ${val/1e9:.2f}B\n"
 
     # Add quarterly financials
+    # Add quarterly financials — more searchable format
     if not quarterly.empty:
-        text += "\nQUARTERLY FINANCIAL STATEMENTS\n"
-        text += "================================\n"
-        for col in quarterly.columns:
-            text += f"\nQuarter: {str(col)[:10]}\n"
-            for idx in quarterly.index:
-                val = quarterly.loc[idx, col]
-                if pd.notna(val):
-                    text += f"  {idx}: ${val/1e9:.2f}B\n"
+       text += "\nQUARTERLY FINANCIAL STATEMENTS\n"
+       text += "================================\n"
+       quarters = list(quarterly.columns)
+       for col in quarterly.columns:
+           quarter_label = str(col)[:10]
+           text += f"\nQuarterly Results for period ending {quarter_label}:\n"
+           for idx in quarterly.index:
+               val = quarterly.loc[idx, col]
+               if pd.notna(val):
+                  text += (
+                       f"  JPMorgan quarterly {idx} "
+                       f"for {quarter_label}: ${val/1e9:.2f} Billion\n"
+                        )
+
+    # Add explicit quarter comparisons
+       if len(quarters) >= 2:
+          text += "\nQUARTER OVER QUARTER COMPARISON\n"
+          text += "=================================\n"
+          for idx in quarterly.index:
+              text += f"\n{idx} by quarter:\n"
+              for col in quarterly.columns:
+                  val = quarterly.loc[idx, col]
+                  if pd.notna(val):
+                    text += f"  {str(col)[:10]}: ${val/1e9:.2f}B\n"
 
     # Add balance sheet
     if not balance_sheet.empty:
