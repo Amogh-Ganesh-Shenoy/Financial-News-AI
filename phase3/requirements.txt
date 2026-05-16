@@ -1,0 +1,15 @@
+streamlit
+openai
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+langchain-core
+faiss-cpu
+yfinance
+plotly
+pandas
+python-dotenv
+requests
+pypdf
+sec-edgar-downloader
