@@ -506,15 +506,14 @@ with tab2:
         st.markdown("**Suggested questions:**")
         sq1, sq2, sq3 = st.columns(3)
         with sq1:
-            if st.button("What was net income?"):
-                st.session_state["suggested_q"] = "What was JPMorgan's net income?"
+             if st.button("What was net income?"):
+                 st.session_state["suggested_q"] = "What was JPMorgan's net income?"
         with sq2:
-            if st.button("What are the key risks?"):
-                st.session_state["suggested_q"] = "What are the key risks mentioned?"
+             if st.button("What is return on equity?"):
+                 st.session_state["suggested_q"] = "What is JPMorgan's return on equity and what does it mean?"
         with sq3:
-            if st.button("What was revenue growth?"):
-                st.session_state["suggested_q"] = "What was the revenue growth?"
-
+              if st.button("What was revenue growth?"):
+                  st.session_state["suggested_q"] = "What was JPMorgan's revenue growth across quarters?"
         # Display chat history
         for message in st.session_state.get("chat_history", []):
             with st.chat_message(message["role"]):
