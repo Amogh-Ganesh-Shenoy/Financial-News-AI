@@ -94,10 +94,11 @@ st.markdown("---")
 # ─────────────────────────────────────
 # TABS
 # ─────────────────────────────────────
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📈 Live Market Data",
     "🤖 Filing Intelligence",
-    "📊 Financial Analytics"
+    "📊 Financial Analytics",
+    "🧮 Investment Calculator"
 ])
 
 # ─────────────────────────────────────
@@ -656,3 +657,385 @@ with tab3:
         except Exception as e:
             st.error(f"Error loading analytics: {e}")
 
+# ─────────────────────────────────────
+# TAB 4 — INVESTMENT CALCULATOR + CHAT
+# ─────────────────────────────────────
+with tab4:
+    st.subheader("🧮 JPMorgan Investment Calculator")
+    st.caption(
+        "Real calculations using live JPMorgan data — "
+        "ask about YOUR money, not just the company"
+    )
+
+    with st.spinner("Loading live data..."):
+        try:
+            info, history, financials, quarterly, recommendations = (
+                get_jpm_data()
+            )
+
+            current_price = info.get("currentPrice", 0)
+            dividend_yield = info.get("dividendYield", 0) or 0
+            dividend_rate = info.get("dividendRate", 0) or 0
+            target_mean = info.get("targetMeanPrice", 0) or 0
+            target_high = info.get("targetHighPrice", 0) or 0
+            target_low = info.get("targetLowPrice", 0) or 0
+            pe_ratio = info.get("trailingPE", 0) or 0
+            eps = info.get("trailingEps", 0) or 0
+
+            # Calculate 12 month actual return
+            if not history.empty:
+                price_12m_ago = history["Close"].iloc[0]
+                price_now = history["Close"].iloc[-1]
+                actual_12m_return = (
+                    (price_now - price_12m_ago) / price_12m_ago
+                ) * 100
+            else:
+                actual_12m_return = 0
+
+            total_annual_return = (
+                actual_12m_return + (dividend_yield * 100)
+            )
+
+            # Live data summary
+            st.subheader("📊 Live Data Powering the Calculators")
+            d1, d2, d3, d4 = st.columns(4)
+            with d1:
+                st.metric("Current Price", f"${current_price:.2f}")
+            with d2:
+                st.metric("Dividend Yield",
+                         f"{dividend_yield*100:.2f}%")
+            with d3:
+                st.metric("12M Price Return",
+                         f"{actual_12m_return:.2f}%")
+            with d4:
+                st.metric("Total Annual Return",
+                         f"{total_annual_return:.2f}%")
+
+            st.markdown("---")
+
+            # CALCULATOR 1
+            st.subheader("💰 Calculator 1 — Investment Return Estimator")
+            st.caption(
+                "Based on JPMorgan's actual 12-month price performance"
+            )
+
+            col_c1, col_c2 = st.columns([1, 1])
+            with col_c1:
+                investment_amount = st.number_input(
+                    "How much would you like to invest? (USD)",
+                    min_value=100,
+                    max_value=10000000,
+                    value=10000,
+                    step=100,
+                    key="inv_amount"
+                )
+                time_horizon = st.selectbox(
+                    "Time horizon",
+                    ["3 months", "6 months",
+                     "1 year", "2 years", "5 years"],
+                    index=2
+                )
+
+            with col_c2:
+                horizon_map = {
+                    "3 months": 0.25,
+                    "6 months": 0.5,
+                    "1 year": 1,
+                    "2 years": 2,
+                    "5 years": 5
+                }
+                years = horizon_map[time_horizon]
+                annual_return = actual_12m_return / 100
+                projected_value = investment_amount * (
+                    (1 + annual_return) ** years
+                )
+                profit_loss = projected_value - investment_amount
+                total_return_pct = (
+                    (projected_value - investment_amount) /
+                    investment_amount
+                ) * 100
+                annual_dividend = investment_amount * dividend_yield
+                total_dividend = annual_dividend * years
+                total_with_dividend = projected_value + total_dividend
+
+                st.metric(
+                    "Projected Value (price only)",
+                    f"${projected_value:,.2f}",
+                    f"{profit_loss:+,.2f} ({total_return_pct:+.2f}%)"
+                )
+                st.metric(
+                    "Dividend Income over period",
+                    f"${total_dividend:,.2f}"
+                )
+                st.metric(
+                    "Total Value (price + dividends)",
+                    f"${total_with_dividend:,.2f}",
+                    f"+${total_with_dividend - investment_amount:,.2f}"
+                )
+
+            st.markdown("---")
+
+            # CALCULATOR 2
+            st.subheader("💵 Calculator 2 — Dividend Income Calculator")
+            st.caption(
+                "How much passive income would your investment generate?"
+            )
+
+            col_d1, col_d2 = st.columns([1, 1])
+            with col_d1:
+                div_investment = st.number_input(
+                    "Investment amount (USD)",
+                    min_value=100,
+                    max_value=10000000,
+                    value=10000,
+                    step=100,
+                    key="div_investment"
+                )
+
+            with col_d2:
+                annual_div_income = div_investment * dividend_yield
+                monthly_div_income = annual_div_income / 12
+                weekly_div_income = annual_div_income / 52
+                shares = (
+                    div_investment / current_price
+                    if current_price > 0 else 0
+                )
+                st.metric("Shares you would own",
+                         f"{shares:.2f} shares")
+                st.metric("Annual dividend income",
+                         f"${annual_div_income:,.2f}")
+                st.metric("Monthly dividend income",
+                         f"${monthly_div_income:,.2f}")
+                st.metric("Weekly dividend income",
+                         f"${weekly_div_income:,.2f}")
+
+            if dividend_yield > 0:
+                years_to_double = 72 / (dividend_yield * 100)
+                st.info(
+                    f"📌 **Rule of 72:** At {dividend_yield*100:.2f}% "
+                    f"dividend yield, it would take approximately "
+                    f"**{years_to_double:.1f} years** to double your "
+                    f"investment through dividends alone."
+                )
+
+            st.markdown("---")
+
+            # CALCULATOR 3
+            st.subheader(
+                "🎯 Calculator 3 — Analyst Price Target Calculator"
+            )
+            st.caption(
+                "Based on Wall Street analyst consensus targets"
+            )
+
+            col_t1, col_t2 = st.columns([1, 1])
+            with col_t1:
+                target_investment = st.number_input(
+                    "Investment amount (USD)",
+                    min_value=100,
+                    max_value=10000000,
+                    value=10000,
+                    step=100,
+                    key="target_investment"
+                )
+                st.markdown(f"""
+                **Analyst Targets:**
+                - 🎯 Mean: **${target_mean:.2f}**
+                - 📈 High: **${target_high:.2f}**
+                - 📉 Low: **${target_low:.2f}**
+                - 💵 Current: **${current_price:.2f}**
+                """)
+
+            with col_t2:
+                if current_price > 0:
+                    mean_upside = (
+                        (target_mean - current_price) /
+                        current_price
+                    ) * 100
+                    mean_profit = target_investment * (mean_upside / 100)
+                    high_upside = (
+                        (target_high - current_price) /
+                        current_price
+                    ) * 100
+                    high_profit = target_investment * (high_upside / 100)
+                    low_upside = (
+                        (target_low - current_price) /
+                        current_price
+                    ) * 100
+                    low_profit = target_investment * (low_upside / 100)
+
+                    st.metric(
+                        "If mean target hit",
+                        f"${target_investment + mean_profit:,.2f}",
+                        f"{mean_upside:+.2f}% (${mean_profit:+,.2f})"
+                    )
+                    st.metric(
+                        "If high target hit",
+                        f"${target_investment + high_profit:,.2f}",
+                        f"{high_upside:+.2f}% (${high_profit:+,.2f})"
+                    )
+                    st.metric(
+                        "If low target hit",
+                        f"${target_investment + low_profit:,.2f}",
+                        f"{low_upside:+.2f}% (${low_profit:+,.2f})"
+                    )
+
+            st.markdown("---")
+
+            # CALCULATOR 4
+            st.subheader("📈 How Much to Invest to Reach a Target Profit?")
+            st.caption(
+                "Based on JPMorgan's actual 12-month performance "
+                "+ current dividend yield"
+            )
+
+            double_target = st.number_input(
+                "Target profit you want to make (USD)",
+                min_value=100,
+                max_value=10000000,
+                value=10000,
+                step=100,
+                key="double_target"
+            )
+
+            if total_annual_return > 0:
+                required_investment = (
+                    (double_target / total_annual_return) * 100
+                )
+                st.success(f"""
+                To make **${double_target:,.2f} profit** in one year:
+                - 📊 JPMorgan total annual return: **{total_annual_return:.2f}%**
+                - 💰 Required investment: **${required_investment:,.2f}**
+                - 📈 Price return: **{actual_12m_return:.2f}%**
+                - 💵 Dividend return: **{dividend_yield*100:.2f}%**
+
+                ⚠️ *Past performance does not guarantee future results.*
+                """)
+            else:
+                st.warning(
+                    "Negative performance detected. "
+                    "Calculator unavailable."
+                )
+
+            st.markdown("---")
+
+            # INVESTMENT Q&A CHAT
+            st.subheader("💬 Ask Your Investment Questions")
+            st.caption(
+                "Ask anything about investing in JPMorgan — "
+                "this answers questions about YOUR money, "
+                "not just company data"
+            )
+
+            investment_context = f"""
+            JPMorgan Chase (JPM) Live Investment Data:
+            - Current Price: ${current_price:.2f}
+            - 12-Month Price Return: {actual_12m_return:.2f}%
+            - Dividend Yield: {dividend_yield*100:.2f}%
+            - Annual Dividend Per Share: ${dividend_rate:.2f}
+            - Analyst Mean Target: ${target_mean:.2f}
+            - Analyst High Target: ${target_high:.2f}
+            - Analyst Low Target: ${target_low:.2f}
+            - P/E Ratio: {pe_ratio:.2f}
+            - Earnings Per Share: ${eps:.2f}
+            - 52 Week High: ${info.get('fiftyTwoWeekHigh', 0):.2f}
+            - 52 Week Low: ${info.get('fiftyTwoWeekLow', 0):.2f}
+            - Market Cap: ${info.get('marketCap', 0)/1e9:.2f} Billion
+            - Return on Equity: {info.get('returnOnEquity', 0)*100:.2f}%
+            - Profit Margin: {info.get('profitMargins', 0)*100:.2f}%
+            - Total Annual Return: {total_annual_return:.2f}%
+            """
+
+            # Suggested questions
+            st.markdown("**Suggested questions:**")
+            iq1, iq2, iq3 = st.columns(3)
+            with iq1:
+                if st.button("How much to make $1,000 profit?"):
+                    st.session_state["investment_q"] = (
+                        "How much do I need to invest in JPMorgan "
+                        "to make $1,000 profit in one year?"
+                    )
+            with iq2:
+                if st.button("Is JPMorgan a good buy now?"):
+                    st.session_state["investment_q"] = (
+                        "Based on current data, is JPMorgan "
+                        "a good stock to buy right now?"
+                    )
+            with iq3:
+                if st.button("Dividend income from $50,000?"):
+                    st.session_state["investment_q"] = (
+                        "If I invest $50,000 in JPMorgan today, "
+                        "how much dividend income would I earn?"
+                    )
+
+            # Display chat history
+            for message in st.session_state.get(
+                "investment_history", []
+            ):
+                with st.chat_message(message["role"]):
+                    st.write(message["content"])
+
+            # Handle suggested question
+            auto_iq = st.session_state.pop("investment_q", None)
+
+            # Chat input
+            investment_question = st.chat_input(
+                "Ask anything about investing in JPMorgan...",
+                key="investment_chat"
+            )
+
+            if investment_question or auto_iq:
+                q = auto_iq or investment_question
+
+                with st.chat_message("user"):
+                    st.write(q)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Calculating..."):
+                        inv_response = client.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": f"""You are a personal 
+                                    investment advisor specialising in 
+                                    JPMorgan Chase stock (JPM).
+
+                                    Answer questions about investing in 
+                                    JPMorgan — returns, how much to invest,
+                                    risk, dividend income, and strategy.
+
+                                    Use this live data for precise answers:
+                                    {investment_context}
+
+                                    Always:
+                                    - Give specific numbers and calculations
+                                    - Be direct and actionable  
+                                    - End with a brief risk disclaimer
+
+                                    Never give generic advice — always 
+                                    reference actual JPMorgan data."""
+                                },
+                                {
+                                    "role": "user",
+                                    "content": q
+                                }
+                            ],
+                            temperature=0.3
+                        )
+                        answer = (
+                            inv_response.choices[0].message.content
+                        )
+                        st.write(answer)
+
+                if "investment_history" not in st.session_state:
+                    st.session_state["investment_history"] = []
+                st.session_state["investment_history"].append(
+                    {"role": "user", "content": q}
+                )
+                st.session_state["investment_history"].append(
+                    {"role": "assistant", "content": answer}
+                )
+
+        except Exception as e:
+            st.error(f"Calculator error: {e}")
